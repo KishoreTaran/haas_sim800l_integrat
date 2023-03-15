@@ -1,0 +1,94 @@
+esphome:
+  name: esp-sim
+  friendly_name: esp_sim
+
+esp8266:
+  board: esp01_1m
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "a3IUOwWl0Fa0BxnYLOEEbw/LI9V2eugmFcIG1uYzQnQ="
+  services:
+    - service: send_sms
+      variables:
+        recipient: string
+        message: string
+      then:
+        - sim800l.send_sms:
+            recipient: !lambda 'return recipient;'
+            message: !lambda 'return message;'
+    - service: dial
+      variables:
+        recipient: string
+      then:
+        - sim800l.dial:
+            recipient: !lambda 'return recipient;'
+    - service: connect
+      then:
+        - sim800l.connect
+    - service: disconnect
+      then:
+        - sim800l.disconnect
+    - service: send_ussd
+      variables:
+        ussdCode: string
+      then:
+        - sim800l.send_ussd:
+            ussd: !lambda 'return ussdCode;'
+
+text_sensor:
+  - platform: template
+    id: sms_sender
+    name: "Sms Sender"
+  - platform: template
+    id: sms_message
+    name: "Sms Message"
+  - platform: template
+    id: caller_id_text_sensor
+    name: "Caller ID"
+  - platform: template
+    id: ussd_message
+    name: "Ussd Code"
+
+sim800l:
+  on_sms_received:
+    - lambda: |-
+        id(sms_sender).publish_state(sender);
+        id(sms_message).publish_state(message);
+  on_incoming_call:
+    - lambda: |-
+        id(caller_id_text_sensor).publish_state(caller_id);
+  on_call_connected:
+    - logger.log:
+        format: Call connected
+  on_call_disconnected:
+    - logger.log:
+        format: Call disconnected
+  on_ussd_received:
+    - lambda: |-
+        id(ussd_message).publish_state(ussd);   
+ota:
+  password: "19b27be2107f7d072356034630788004"
+
+wifi:
+  ssid: Test2
+  password: 789321456@#
+  manual_ip:
+    static_ip: 192.168.0.105
+    gateway: 192.168.0.1
+    subnet: 255.255.255.0
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Esp-Sim Fallback Hotspot"
+    password: "7bgPWpecPUV0"
+
+captive_portal:
+uart:
+  tx_pin: GPIO2
+  rx_pin: GPIO5
+  baud_rate: 9600    
